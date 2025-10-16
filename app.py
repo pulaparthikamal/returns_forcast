@@ -14,6 +14,7 @@ config = Config()
 
 
 
+
 # Initialize components
 db_connection = DatabaseConnection()
 forecast_service = ForecastService()

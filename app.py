@@ -12,6 +12,8 @@ app = Flask(__name__)
 CORS(app)
 config = Config()
 
+
+
 # Initialize components
 db_connection = DatabaseConnection()
 forecast_service = ForecastService()

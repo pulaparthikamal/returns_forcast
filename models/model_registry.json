@@ -1,0 +1,32 @@
+{
+  "models": {
+    "AMERISOURCEBERGEN DRUG CORP": {
+      "last_trained": "2025-10-19T17:26:19.581046",
+      "data_hash": "-3635217314879580878",
+      "model_path": "models/trained_models/AMERISOURCEBERGEN DRUG CORP_model.pkl"
+    },
+    "EXP AMERISOURCEBERGEN RETL ACC": {
+      "last_trained": "2025-10-19T17:26:21.607081",
+      "data_hash": "1785157335960418039",
+      "model_path": "models/trained_models/EXP AMERISOURCEBERGEN RETL ACC_model.pkl"
+    },
+    "MCKESSON CORPORATION": {
+      "last_trained": "2025-10-19T17:26:21.663042",
+      "data_hash": "-4503577734604164128",
+      "model_path": "models/trained_models/MCKESSON CORPORATION_model.pkl"
+    },
+    "CARDINAL HEALTH": {
+      "last_trained": "2025-10-19T17:26:21.730734",
+      "data_hash": "-4836903663801069227",
+      "model_path": "models/trained_models/CARDINAL HEALTH_model.pkl"
+    },
+    "AMERISOURCEBERGEN": {
+      "last_trained": "2025-10-19T17:26:22.317297",
+      "data_hash": "8842888445653838350",
+      "model_path": "models/trained_models/AMERISOURCEBERGEN_model.pkl"
+    }
+  },
+  "last_updated": "2025-10-19T17:26:22.317311",
+  "cache_hits": 0,
+  "cache_misses": 5
+}

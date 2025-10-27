@@ -97,8 +97,8 @@ class ForecastService:
         Convert raw data to monthly time series for each company
         """
         try:
-            # Convert dates
-            df['DateTransactionJulian'] = pd.to_datetime(df['DateTransactionJulian'], format='%Y-%m-%d')
+            # Convert dates - handle both "2017-04-22" and "2017-04-22T00:00:00" formats
+            df['DateTransactionJulian'] = pd.to_datetime(df['DateTransactionJulian'], errors='coerce')
             df['year_month'] = df['DateTransactionJulian'].dt.to_period('M')
 
             # Aggregate by company and month
@@ -123,8 +123,8 @@ class ForecastService:
         Convert raw data to monthly time series for each state
         """
         try:
-            # Convert dates
-            df['DateTransactionJulian'] = pd.to_datetime(df['DateTransactionJulian'], format='%Y-%m-%d')
+            # Convert dates - handle both "2017-04-22" and "2017-04-22T00:00:00" formats
+            df['DateTransactionJulian'] = pd.to_datetime(df['DateTransactionJulian'], errors='coerce')
             df['year_month'] = df['DateTransactionJulian'].dt.to_period('M')
 
             # Aggregate by state and month
@@ -753,6 +753,10 @@ class ForecastService:
             # Create a hash based on data content (excluding order)
             # Sort by date and company to ensure consistent hashing
             df_sorted = df.sort_values(['DateTransactionJulian', 'NameAlpha'])
+            
+            # Convert dates to consistent string format for hashing
+            df_sorted = df_sorted.copy()
+            df_sorted['DateTransactionJulian'] = pd.to_datetime(df_sorted['DateTransactionJulian']).dt.strftime('%Y-%m-%d')
             
             # Create hash from key columns
             hash_data = df_sorted[['DateTransactionJulian', 'NameAlpha', 'State', 'Orig_Inv_Ttl_Prod_Value']].to_string()

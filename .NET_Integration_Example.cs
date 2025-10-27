@@ -142,7 +142,7 @@ namespace ReturnsForecast.API.Controllers
                 .Where(t => t.Date >= DateTime.Now.AddYears(-1))
                 .Select(t => new Transaction
                 {
-                    DateTransactionJulian = t.Date.ToString("yyyy-MM-dd"),
+                    DateTransactionJulian = t.Date.ToString("yyyy-MM-ddTHH:mm:ss"),
                     NameAlpha = t.CompanyName,
                     State = t.State,
                     Orig_Inv_Ttl_Prod_Value = t.Value
@@ -168,7 +168,7 @@ namespace ReturnsForecast.API.Controllers
 
                 transactions.Add(new Transaction
                 {
-                    DateTransactionJulian = transactionDate.ToString("yyyy-MM-dd"),
+                    DateTransactionJulian = transactionDate.ToString("yyyy-MM-ddTHH:mm:ss"),
                     NameAlpha = companies[random.Next(companies.Length)],
                     State = states[random.Next(states.Length)],
                     Orig_Inv_Ttl_Prod_Value = Math.Round(random.NextDouble() * 5000 + 100, 2)

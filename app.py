@@ -129,7 +129,7 @@ def process_data_from_net():
     {
         "data": [
             {
-                "DateTransactionJulian": "2024-01-15",
+                "DateTransactionJulian": "2024-01-15T00:00:00",
                 "NameAlpha": "COMPANY NAME",
                 "State": "CA",
                 "Orig_Inv_Ttl_Prod_Value": 1000.50
@@ -163,6 +163,16 @@ def process_data_from_net():
             return jsonify({"error": "Failed to convert JSON data to CSV"}), 500
         
         print(f"✅ JSON data converted to CSV: {csv_path}")
+        
+        # Check if CSV file has valid data
+        import pandas as pd
+        try:
+            df = pd.read_csv(csv_path)
+            if df.empty:
+                return jsonify({"error": "No valid data remaining after filtering"}), 400
+            print(f"📊 Valid data records: {len(df)}")
+        except Exception as e:
+            return jsonify({"error": f"Failed to validate CSV data: {str(e)}"}), 500
         
         # Check if data has changed and determine if retraining is needed
         should_retrain = data_processor.should_retrain_models(csv_path, force_retrain)

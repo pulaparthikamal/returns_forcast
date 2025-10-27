@@ -66,20 +66,34 @@ class DataProcessor:
     def _clean_data(self, df):
         """Clean and validate the data"""
         try:
+            original_count = len(df)
+            
             # Remove rows with missing critical data
             df = df.dropna(subset=['DateTransactionJulian', 'NameAlpha', 'Orig_Inv_Ttl_Prod_Value'])
             
-            # Convert date column to proper format
+            # Validate date format before conversion
+            df = self._validate_date_formats(df)
+            
+            # Convert date column to proper format - handle both "2017-04-22" and "2017-04-22T00:00:00" formats
             df['DateTransactionJulian'] = pd.to_datetime(df['DateTransactionJulian'], errors='coerce')
             
             # Remove rows with invalid dates
+            invalid_dates = df['DateTransactionJulian'].isna().sum()
+            if invalid_dates > 0:
+                print(f"⚠️ {invalid_dates} records filtered due to invalid datetime format")
             df = df.dropna(subset=['DateTransactionJulian'])
             
             # Ensure numeric values for Orig_Inv_Ttl_Prod_Value
             df['Orig_Inv_Ttl_Prod_Value'] = pd.to_numeric(df['Orig_Inv_Ttl_Prod_Value'], errors='coerce')
+            invalid_values = df['Orig_Inv_Ttl_Prod_Value'].isna().sum()
+            if invalid_values > 0:
+                print(f"⚠️ {invalid_values} records filtered due to invalid numeric values")
             df = df.dropna(subset=['Orig_Inv_Ttl_Prod_Value'])
             
             # Remove rows with zero or negative values
+            zero_values = (df['Orig_Inv_Ttl_Prod_Value'] <= 0).sum()
+            if zero_values > 0:
+                print(f"⚠️ {zero_values} records filtered due to zero or negative values")
             df = df[df['Orig_Inv_Ttl_Prod_Value'] > 0]
             
             # Clean company names (remove extra spaces, standardize)
@@ -89,14 +103,72 @@ class DataProcessor:
             df['State'] = df['State'].str.strip().str.upper()
             
             # Remove duplicates
+            duplicates = df.duplicated().sum()
+            if duplicates > 0:
+                print(f"⚠️ {duplicates} duplicate records removed")
             df = df.drop_duplicates()
             
-            print(f"📊 Data cleaned: {len(df)} valid records remaining")
+            filtered_count = original_count - len(df)
+            if filtered_count > 0:
+                print(f"📊 Data cleaned: {len(df)} valid records remaining ({filtered_count} filtered out)")
+            else:
+                print(f"📊 Data cleaned: {len(df)} valid records remaining")
             return df
             
         except Exception as e:
             print(f"❌ Error cleaning data: {str(e)}")
             return pd.DataFrame()
+    
+    def _validate_date_formats(self, df):
+        """Validate date formats and filter out invalid ones"""
+        try:
+            # Check for common invalid date patterns
+            invalid_patterns = [
+                r'^\d{1,2}/\d{1,2}/\d{4}$',  # DD/MM/YYYY or MM/DD/YYYY
+                r'^\d{1,2}-\d{1,2}-\d{4}$',  # DD-MM-YYYY or MM-DD-YYYY
+                r'^\d{4}/\d{1,2}/\d{1,2}$',  # YYYY/MM/DD
+                r'^\d{4}-\d{1,2}-\d{1,2}$',  # YYYY-MM-DD (this is valid, but we want to be strict)
+            ]
+            
+            import re
+            
+            def is_valid_date_format(date_str):
+                if pd.isna(date_str) or date_str == '' or date_str is None:
+                    return False
+                
+                date_str = str(date_str).strip()
+                
+                # Check for invalid patterns
+                for pattern in invalid_patterns[:-1]:  # Exclude the last pattern (YYYY-MM-DD)
+                    if re.match(pattern, date_str):
+                        return False
+                
+                # Check for valid patterns
+                valid_patterns = [
+                    r'^\d{4}-\d{2}-\d{2}$',  # YYYY-MM-DD
+                    r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$',  # YYYY-MM-DDTHH:MM:SS
+                    r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+$',  # YYYY-MM-DDTHH:MM:SS.microseconds
+                ]
+                
+                for pattern in valid_patterns:
+                    if re.match(pattern, date_str):
+                        return True
+                
+                return False
+            
+            # Filter out invalid date formats
+            valid_mask = df['DateTransactionJulian'].apply(is_valid_date_format)
+            invalid_count = (~valid_mask).sum()
+            
+            if invalid_count > 0:
+                print(f"⚠️ {invalid_count} records filtered due to invalid date format")
+                df = df[valid_mask]
+            
+            return df
+            
+        except Exception as e:
+            print(f"❌ Error validating date formats: {str(e)}")
+            return df
     
     def calculate_data_hash(self, csv_path):
         """Calculate hash of the data to detect changes"""
@@ -106,6 +178,10 @@ class DataProcessor:
             # Create a hash based on data content (excluding order)
             # Sort by date and company to ensure consistent hashing
             df_sorted = df.sort_values(['DateTransactionJulian', 'NameAlpha'])
+            
+            # Convert dates to consistent string format for hashing
+            df_sorted = df_sorted.copy()
+            df_sorted['DateTransactionJulian'] = pd.to_datetime(df_sorted['DateTransactionJulian']).dt.strftime('%Y-%m-%d')
             
             # Create hash from key columns
             hash_data = df_sorted[['DateTransactionJulian', 'NameAlpha', 'State', 'Orig_Inv_Ttl_Prod_Value']].to_string()

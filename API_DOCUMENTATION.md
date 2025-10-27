@@ -36,13 +36,13 @@ POST /process-data
 {
   "data": [
     {
-      "DateTransactionJulian": "2024-01-15",
+      "DateTransactionJulian": "2024-01-15T00:00:00",
       "NameAlpha": "COMPANY NAME",
       "State": "CA",
       "Orig_Inv_Ttl_Prod_Value": 1000.50
     },
     {
-      "DateTransactionJulian": "2024-01-16",
+      "DateTransactionJulian": "2024-01-16T00:00:00",
       "NameAlpha": "ANOTHER COMPANY",
       "State": "NY",
       "Orig_Inv_Ttl_Prod_Value": 2500.75
@@ -156,13 +156,15 @@ The API expects JSON data in the following format:
 ```json
 [
   {
-    "DateTransactionJulian": "2024-01-15",  // Date in YYYY-MM-DD format
-    "NameAlpha": "COMPANY NAME",            // Company name (string)
-    "State": "CA",                          // State code (string)
-    "Orig_Inv_Ttl_Prod_Value": 1000.50     // Numeric value (float)
+    "DateTransactionJulian": "2024-01-15T00:00:00",  // Date in YYYY-MM-DDTHH:MM:SS format
+    "NameAlpha": "COMPANY NAME",                     // Company name (string)
+    "State": "CA",                                   // State code (string)
+    "Orig_Inv_Ttl_Prod_Value": 1000.50              // Numeric value (float)
   }
 ]
 ```
+
+**Note:** The API also supports the legacy `YYYY-MM-DD` format for backward compatibility.
 
 ### Required Fields
 - `DateTransactionJulian`: Transaction date

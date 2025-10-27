@@ -40,7 +40,7 @@ def generate_sample_data(num_records=100):
         transaction_date = base_date + timedelta(days=random_days)
         
         record = {
-            "DateTransactionJulian": transaction_date.strftime("%Y-%m-%d"),
+            "DateTransactionJulian": transaction_date.strftime("%Y-%m-%dT%H:%M:%S"),
             "NameAlpha": random.choice(companies),
             "State": random.choice(states),
             "Orig_Inv_Ttl_Prod_Value": round(random.uniform(100, 5000), 2)

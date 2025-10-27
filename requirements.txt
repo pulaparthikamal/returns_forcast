@@ -2,6 +2,7 @@ flask==2.3.3
 flask-cors==4.0.0
 pandas==2.0.3
 prophet==1.1.4
+cmdstanpy==1.2.0
 sqlalchemy==2.0.20
 mysql-connector-python==8.1.0
 python-dotenv==1.0.0

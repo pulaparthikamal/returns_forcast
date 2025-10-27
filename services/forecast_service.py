@@ -32,12 +32,12 @@ class ForecastService:
                     with open(model_path, 'rb') as f:
                         model = pickle.load(f)
                     self.trained_models[company_name] = model
-                    print(f"✅ Loaded existing model for {company_name}")
+                    print(f"Loaded existing model for {company_name}")
                     return model
             
             return None
         except Exception as e:
-            print(f"❌ Error loading model for {company_name}: {str(e)}")
+            print(f" Error loading model for {company_name}: {str(e)}")
             return None
     
     def save_model(self, company_name, model, data_hash):
@@ -56,11 +56,11 @@ class ForecastService:
             # Cache the model
             self.trained_models[company_name] = model
             
-            print(f"✅ Saved model for {company_name}")
+            print(f" Saved model for {company_name}")
             return True
             
         except Exception as e:
-            print(f"❌ Error saving model for {company_name}: {str(e)}")
+            print(f" Error saving model for {company_name}: {str(e)}")
             return False
     
     def _load_model_registry(self):
@@ -71,7 +71,7 @@ class ForecastService:
                     return json.load(f)
             return None
         except Exception as e:
-            print(f"❌ Error loading model registry: {str(e)}")
+            print(f" Error loading model registry: {str(e)}")
             return None
     
     def _update_model_registry(self, company_name, model_path, data_hash):
@@ -93,7 +93,7 @@ class ForecastService:
                 json.dump(registry, f, indent=2)
             
         except Exception as e:
-            print(f"❌ Error updating model registry: {str(e)}")
+            print(f" Error updating model registry: {str(e)}")
     
     def prepare_time_series_data(self, df):
         """
@@ -193,14 +193,14 @@ class ForecastService:
             # Validate data quality
             is_valid, validation_msg = self._validate_data_quality(prophet_df, company_name)
             if not is_valid:
-                print(f"⚠️ {company_name}: {validation_msg}, skipping...")
+                print(f" {company_name}: {validation_msg}, skipping...")
                 return None
 
             model = None
             
             if retrain_model:
                 # Train new model
-                print(f"🔄 Training new model for {company_name}...")
+                print(f" Training new model for {company_name}...")
                 model = self._train_prophet_model(prophet_df, company_name)
                 
                 # Save the model if data_hash is provided
@@ -210,13 +210,13 @@ class ForecastService:
                 # Try to load existing model
                 model = self.load_model(company_name)
                 if not model:
-                    print(f"⚠️ No existing model found for {company_name}, training new one...")
+                    print(f" No existing model found for {company_name}, training new one...")
                     model = self._train_prophet_model(prophet_df, company_name)
                     if model and data_hash:
                         self.save_model(company_name, model, data_hash)
 
             if not model:
-                print(f"❌ Failed to create model for {company_name}")
+                print(f" Failed to create model for {company_name}")
                 return None
 
             # Use cross-platform wrapper for prediction
@@ -234,8 +234,13 @@ class ForecastService:
             )
             
             if not result['success']:
-                print(f"❌ Failed to generate forecast for {company_name}: {result.get('error', 'Unknown error')}")
+                error_msg = result.get('error', 'Unknown error')
+                print(f" Failed to generate forecast for {company_name}: {error_msg}")
                 return None
+            
+            # Log the method used
+            method = result.get('method', 'prophet')
+            print(f" {company_name}: Forecast generated using {method} method")
 
             forecast = result['forecast']
 
@@ -246,7 +251,7 @@ class ForecastService:
             else:
                 mape = 0
 
-            print(f"✅ {company_name}: Forecast created (MAPE: {mape:.1f}%)")
+            print(f" {company_name}: Forecast created (MAPE: {mape:.1f}%)")
 
             return {
                 'forecast': forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']],
@@ -255,7 +260,7 @@ class ForecastService:
             }
 
         except Exception as e:
-            print(f"❌ Error forecasting {company_name}: {str(e)}")
+            print(f" Error forecasting {company_name}: {str(e)}")
             return None
     
     def _train_prophet_model(self, prophet_df, company_name):
@@ -265,7 +270,7 @@ class ForecastService:
             max_retries = 2
             for attempt in range(max_retries):
                 try:
-                    print(f"🔄 Training attempt {attempt + 1}/{max_retries} for {company_name}...")
+                    print(f" Training attempt {attempt + 1}/{max_retries} for {company_name}...")
                     
                     # Use cross-platform wrapper for training
                     result = self.prophet_wrapper.fit_and_predict(
@@ -282,14 +287,14 @@ class ForecastService:
                     )
                     
                     if result['success']:
-                        print(f"✅ Successfully trained model for {company_name}")
+                        print(f" Successfully trained model for {company_name}")
                         return result['model']
                     else:
                         error_msg = result.get('error', 'Unknown error')
-                        print(f"⚠️ Training attempt {attempt + 1} failed for {company_name}: {error_msg}")
+                        print(f" Training attempt {attempt + 1} failed for {company_name}: {error_msg}")
                         
                         if attempt < max_retries - 1:
-                            print(f"🔄 Retrying with simplified parameters...")
+                            print(f" Retrying with simplified parameters...")
                             # Try with simplified parameters on retry
                             result = self.prophet_wrapper.fit_and_predict(
                                 prophet_df, 
@@ -305,27 +310,27 @@ class ForecastService:
                             )
                             
                             if result['success']:
-                                print(f"✅ Successfully trained simplified model for {company_name}")
+                                print(f" Successfully trained simplified model for {company_name}")
                                 return result['model']
                         else:
-                            print(f"❌ All training attempts failed for {company_name}")
+                            print(f" All training attempts failed for {company_name}")
                             return None
                             
                 except Exception as e:
                     error_msg = str(e)
-                    print(f"⚠️ Training attempt {attempt + 1} exception for {company_name}: {error_msg}")
+                    print(f" Training attempt {attempt + 1} exception for {company_name}: {error_msg}")
                     
                     if attempt < max_retries - 1:
-                        print(f"🔄 Retrying...")
+                        print(f" Retrying...")
                         continue
                     else:
-                        print(f"❌ All training attempts failed for {company_name}: {error_msg}")
+                        print(f" All training attempts failed for {company_name}: {error_msg}")
                         return None
             
             return None
             
         except Exception as e:
-            print(f"❌ Critical error training model for {company_name}: {str(e)}")
+            print(f" Critical error training model for {company_name}: {str(e)}")
             return None
 
     def get_top_companies_forecast(self, time_series_data, top_n=5, forecast_months=6, retrain_models=True, data_hash=None):
@@ -338,7 +343,7 @@ class ForecastService:
             company_totals = recent_data.sum().sort_values(ascending=False)
             top_companies = company_totals.head(top_n).index.tolist()
 
-            print("🏆 Top Companies Selected for Forecasting:")
+            print(" Top Companies Selected for Forecasting:")
             for i, company in enumerate(top_companies, 1):
                 print(f"  {i}. {company} (Recent volume: ${company_totals[company]:,.0f})")
 
@@ -375,7 +380,7 @@ class ForecastService:
             # Validate data quality
             is_valid, validation_msg = self._validate_data_quality(prophet_df, state_name)
             if not is_valid:
-                print(f"⚠️ {state_name}: {validation_msg}, skipping...")
+                print(f" {state_name}: {validation_msg}, skipping...")
                 return None
 
             # Use cross-platform wrapper for state forecasting
@@ -393,8 +398,13 @@ class ForecastService:
             )
             
             if not result['success']:
-                print(f"❌ Failed to generate state forecast for {state_name}: {result.get('error', 'Unknown error')}")
+                error_msg = result.get('error', 'Unknown error')
+                print(f" Failed to generate state forecast for {state_name}: {error_msg}")
                 return None
+            
+            # Log the method used
+            method = result.get('method', 'prophet')
+            print(f" {state_name}: State forecast generated using {method} method")
 
             forecast = result['forecast']
 
@@ -405,7 +415,7 @@ class ForecastService:
             else:
                 mape = 0
 
-            print(f"✅ {state_name}: State forecast created (MAPE: {mape:.1f}%)")
+            print(f" {state_name}: State forecast created (MAPE: {mape:.1f}%)")
 
             return {
                 'forecast': forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']],
@@ -414,7 +424,7 @@ class ForecastService:
             }
 
         except Exception as e:
-            print(f"❌ Error forecasting {state_name}: {str(e)}")
+            print(f" Error forecasting {state_name}: {str(e)}")
             return None
 
     def get_top_states_forecast(self, state_time_series_data, top_n=5, forecast_months=6):
@@ -427,7 +437,7 @@ class ForecastService:
             state_totals = recent_data.sum().sort_values(ascending=False)
             top_states = state_totals.head(top_n).index.tolist()
 
-            print("🏆 Top States Selected for Forecasting:")
+            print(" Top States Selected for Forecasting:")
             for i, state in enumerate(top_states, 1):
                 print(f"  {i}. {state} (Recent volume: ${state_totals[state]:,.0f})")
 
@@ -795,7 +805,7 @@ class ForecastService:
         Generate forecasts from CSV file - includes both company and state forecasts
         """
         try:
-            print("📊 Loading and preparing data from CSV...")
+            print(" Loading and preparing data from CSV...")
             df = pd.read_csv(csv_path)
             
             # Calculate data hash for model management
@@ -811,11 +821,11 @@ class ForecastService:
             if state_time_series_data is None:
                 return {"error": "Failed to prepare state time series data"}
 
-            print(f"📈 Company data loaded: {len(self.time_series_data)} months, {len(self.time_series_data.columns)} companies")
-            print(f"📈 State data loaded: {len(state_time_series_data)} months, {len(state_time_series_data.columns)} states")
+            print(f"Company data loaded: {len(self.time_series_data)} months, {len(self.time_series_data.columns)} companies")
+            print(f"State data loaded: {len(state_time_series_data)} months, {len(state_time_series_data.columns)} states")
 
             # Generate company forecasts
-            print("\n🔮 Generating AI forecasts for top companies...")
+            print("\n Generating AI forecasts for top companies...")
             company_forecasts = self.get_top_companies_forecast(
                 self.time_series_data, 
                 top_n, 
@@ -825,15 +835,15 @@ class ForecastService:
             )
 
             # Generate state forecasts
-            print("\n🔮 Generating AI forecasts for top states...")
+            print("\n Generating AI forecasts for top states...")
             state_forecasts = self.get_top_states_forecast(state_time_series_data, top_n, forecast_months)
 
             # Generate React-compatible data for companies
-            print("\n🔄 Generating React-compatible company data...")
+            print("\n Generating React-compatible company data...")
             company_react_data = self.generate_react_forecast_data(company_forecasts, self.time_series_data)
 
             # Generate React-compatible data for states
-            print("\n🔄 Generating React-compatible state data...")
+            print("\n Generating React-compatible state data...")
             state_react_data = self.generate_state_react_forecast_data(state_forecasts, state_time_series_data)
 
             # Combine both forecasts
@@ -873,7 +883,7 @@ class ForecastService:
             return data_hash
             
         except Exception as e:
-            print(f"❌ Error calculating data hash: {str(e)}")
+            print(f" Error calculating data hash: {str(e)}")
             return None
 
     def generate_forecast_from_db(self, db_connection, query, top_n=5, forecast_months=6):
@@ -881,7 +891,7 @@ class ForecastService:
         Generate forecasts from database - includes both company and state forecasts
         """
         try:
-            print("📊 Loading and preparing data from database...")
+            print(" Loading and preparing data from database...")
             df = db_connection.fetch_data(query)
             
             if df is None or df.empty:
@@ -897,23 +907,23 @@ class ForecastService:
             if state_time_series_data is None:
                 return {"error": "Failed to prepare state time series data"}
 
-            print(f"📈 Company data loaded: {len(self.time_series_data)} months, {len(self.time_series_data.columns)} companies")
-            print(f"📈 State data loaded: {len(state_time_series_data)} months, {len(state_time_series_data.columns)} states")
+            print(f"Company data loaded: {len(self.time_series_data)} months, {len(self.time_series_data.columns)} companies")
+            print(f"State data loaded: {len(state_time_series_data)} months, {len(state_time_series_data.columns)} states")
 
             # Generate company forecasts
-            print("\n🔮 Generating AI forecasts for top companies...")
+            print("\n Generating AI forecasts for top companies...")
             company_forecasts = self.get_top_companies_forecast(self.time_series_data, top_n, forecast_months)
 
             # Generate state forecasts
-            print("\n🔮 Generating AI forecasts for top states...")
+            print("\n Generating AI forecasts for top states...")
             state_forecasts = self.get_top_states_forecast(state_time_series_data, top_n, forecast_months)
 
             # Generate React-compatible data for companies
-            print("\n🔄 Generating React-compatible company data...")
+            print("\n Generating React-compatible company data...")
             company_react_data = self.generate_react_forecast_data(company_forecasts, self.time_series_data)
 
             # Generate React-compatible data for states
-            print("\n🔄 Generating React-compatible state data...")
+            print("\n Generating React-compatible state data...")
             state_react_data = self.generate_state_react_forecast_data(state_forecasts, state_time_series_data)
 
             # Combine both forecasts

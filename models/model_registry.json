@@ -11,8 +11,8 @@
       "model_path": "models/trained_models/EXP AMERISOURCEBERGEN RETL ACC_model.pkl"
     },
     "MCKESSON CORPORATION": {
-      "last_trained": "2025-10-27T18:38:50.672890",
-      "data_hash": "92bb55378851633c1e92196b2fb94aae",
+      "last_trained": "2025-10-27T20:28:32.365985",
+      "data_hash": "c9bad5237e8637a85b95a0db45177cdc",
       "model_path": "models/trained_models/MCKESSON CORPORATION_model.pkl"
     },
     "CARDINAL HEALTH": {
@@ -54,9 +54,24 @@
       "last_trained": "2025-10-27T18:38:34.872004",
       "data_hash": "dc63d00fde5795ad47be801075c69cb0",
       "model_path": "models/trained_models/WALMART PHARMACY_model.pkl"
+    },
+    "TEST COMPANY C": {
+      "last_trained": "2025-10-27T20:27:20.187785",
+      "data_hash": "468b0639bed313b859d6124785b339fb",
+      "model_path": "models/trained_models/TEST COMPANY C_model.pkl"
+    },
+    "TEST COMPANY A": {
+      "last_trained": "2025-10-27T20:27:20.108707",
+      "data_hash": "468b0639bed313b859d6124785b339fb",
+      "model_path": "models/trained_models/TEST COMPANY A_model.pkl"
+    },
+    "TEST COMPANY B": {
+      "last_trained": "2025-10-27T20:27:20.144552",
+      "data_hash": "468b0639bed313b859d6124785b339fb",
+      "model_path": "models/trained_models/TEST COMPANY B_model.pkl"
     }
   },
-  "last_updated": "2025-10-27T18:39:00.820854",
+  "last_updated": "2025-10-27T20:28:32.366010",
   "cache_hits": 0,
   "cache_misses": 5
 }

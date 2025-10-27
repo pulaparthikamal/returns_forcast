@@ -12,7 +12,7 @@ class Config:
     DB_PORT = os.getenv('DB_PORT', '3306')
     
     # Model configuration
-    SAMPLE_DATA_PATH = 'data/ReturnsOverview_hist_past2000_clean.csv'
+    SAMPLE_DATA_PATH = 'data/returns_data.csv'
     TOP_COMPANIES = 5
     FORECAST_MONTHS = 6
     

@@ -23,9 +23,17 @@ forecast_service = ForecastService()
 def home():
     return jsonify({
         "message": "Prophet Model API is running!",
+        "description": "Generates forecasts for both top companies and top states with highest returns",
         "endpoints": {
-            "forecast": "/forecast (POST) - Generate forecasts",
+            "forecast": "/forecast (POST) - Generate company and state forecasts",
+            "forecast_csv": "/forecast/csv (GET) - Generate forecasts from CSV (for testing)",
             "health": "/health (GET) - API health check"
+        },
+        "features": {
+            "company_forecasts": "Predicts top 5 companies with highest returns",
+            "state_forecasts": "Predicts top 5 states with highest returns",
+            "forecast_period": "6 months ahead",
+            "data_sources": ["CSV", "Database"]
         }
     })
 
@@ -36,7 +44,7 @@ def health_check():
 @app.route('/forecast', methods=['POST'])
 def generate_forecast():
     """
-    Generate forecasts using the Prophet model
+    Generate forecasts using the Prophet model - includes both company and state forecasts
     Expected JSON payload:
     {
         "data_source": "csv" or "database",
@@ -91,6 +99,7 @@ def generate_forecast():
 def generate_forecast_csv():
     """
     Generate forecasts using default CSV data (simple GET endpoint for testing)
+    Returns both company and state forecasts
     """
     try:
         result = forecast_service.generate_forecast_from_csv(

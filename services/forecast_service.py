@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from prophet import Prophet
 import json
 import pickle
 import os
@@ -9,11 +8,15 @@ from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
+# Import cross-platform Prophet wrapper
+from utils.prophet_wrapper import CrossPlatformProphet
+
 class ForecastService:
     def __init__(self):
         self.time_series_data = None
         self.trained_models = {}  # Cache for loaded models
         self.model_registry_path = "models/model_registry.json"
+        self.prophet_wrapper = CrossPlatformProphet()  # Initialize cross-platform wrapper
         
     def load_model(self, company_name):
         """Load a trained model for a company"""
@@ -144,6 +147,39 @@ class ForecastService:
             print(f"Error preparing state time series data: {e}")
             return None
 
+    def _validate_data_quality(self, prophet_df, entity_name):
+        """Validate data quality before training"""
+        try:
+            # Check minimum data points
+            if len(prophet_df) < 4:
+                return False, f"Insufficient data points: {len(prophet_df)} (minimum 4 required)"
+            
+            # Check for valid values
+            if prophet_df['y'].isna().all():
+                return False, "All values are NaN"
+            
+            # Check for sufficient variance
+            if prophet_df['y'].std() == 0:
+                return False, "No variance in data (all values are the same)"
+            
+            # Check for reasonable data range
+            if prophet_df['y'].max() <= 0:
+                return False, "All values are zero or negative"
+            
+            # Check for extreme outliers that might cause issues
+            q75, q25 = prophet_df['y'].quantile([0.75, 0.25])
+            iqr = q75 - q25
+            outlier_threshold = q75 + 3 * iqr
+            extreme_outliers = (prophet_df['y'] > outlier_threshold).sum()
+            
+            if extreme_outliers > len(prophet_df) * 0.5:  # More than 50% extreme outliers
+                return False, f"Too many extreme outliers: {extreme_outliers}/{len(prophet_df)}"
+            
+            return True, "Data quality OK"
+            
+        except Exception as e:
+            return False, f"Data validation error: {str(e)}"
+
     def forecast_company_returns(self, company_series, company_name, periods=6, retrain_model=True, data_hash=None):
         """
         Forecast future returns for a single company using Prophet with confidence intervals
@@ -154,8 +190,10 @@ class ForecastService:
             prophet_df.columns = ['ds', 'y']
             prophet_df = prophet_df[prophet_df['y'] > 0]  # Remove zero values
 
-            if len(prophet_df) < 4:  # Need minimum data points
-                print(f"⚠️ Insufficient data for {company_name}, skipping...")
+            # Validate data quality
+            is_valid, validation_msg = self._validate_data_quality(prophet_df, company_name)
+            if not is_valid:
+                print(f"⚠️ {company_name}: {validation_msg}, skipping...")
                 return None
 
             model = None
@@ -181,13 +219,32 @@ class ForecastService:
                 print(f"❌ Failed to create model for {company_name}")
                 return None
 
-            # Make future dataframe
-            future = model.make_future_dataframe(periods=periods, freq='M', include_history=True)
-            forecast = model.predict(future)
+            # Use cross-platform wrapper for prediction
+            result = self.prophet_wrapper.fit_and_predict(
+                prophet_df, 
+                periods=periods,
+                yearly_seasonality=True,
+                weekly_seasonality=False,
+                daily_seasonality=False,
+                changepoint_prior_scale=0.05,
+                seasonality_prior_scale=10,
+                holidays_prior_scale=0.05,
+                seasonality_mode='multiplicative',
+                add_monthly_seasonality=True
+            )
+            
+            if not result['success']:
+                print(f"❌ Failed to generate forecast for {company_name}: {result.get('error', 'Unknown error')}")
+                return None
+
+            forecast = result['forecast']
 
             # Calculate accuracy metrics on historical data
             historical_forecast = forecast[forecast['ds'].isin(prophet_df['ds'])]
-            mape = np.mean(np.abs((historical_forecast['yhat'] - prophet_df['y']) / prophet_df['y'])) * 100
+            if not historical_forecast.empty and not prophet_df.empty:
+                mape = np.mean(np.abs((historical_forecast['yhat'] - prophet_df['y']) / prophet_df['y'])) * 100
+            else:
+                mape = 0
 
             print(f"✅ {company_name}: Forecast created (MAPE: {mape:.1f}%)")
 
@@ -202,27 +259,73 @@ class ForecastService:
             return None
     
     def _train_prophet_model(self, prophet_df, company_name):
-        """Train a new Prophet model"""
+        """Train a new Prophet model using cross-platform wrapper with enhanced error handling"""
         try:
-            # Initialize and fit model with optimized parameters
-            model = Prophet(
-                yearly_seasonality=True,
-                weekly_seasonality=False,
-                daily_seasonality=False,
-                changepoint_prior_scale=0.05,
-                seasonality_prior_scale=10,
-                holidays_prior_scale=0.05,
-                seasonality_mode='multiplicative'
-            )
-
-            # Add monthly seasonality
-            model.add_seasonality(name='monthly', period=30.5, fourier_order=3)
-
-            model.fit(prophet_df)
-            return model
+            # Add timeout and retry mechanism
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    print(f"🔄 Training attempt {attempt + 1}/{max_retries} for {company_name}...")
+                    
+                    # Use cross-platform wrapper for training
+                    result = self.prophet_wrapper.fit_and_predict(
+                        prophet_df, 
+                        periods=6,  # We'll get 6 months of forecast
+                        yearly_seasonality=True,
+                        weekly_seasonality=False,
+                        daily_seasonality=False,
+                        changepoint_prior_scale=0.05,
+                        seasonality_prior_scale=10,
+                        holidays_prior_scale=0.05,
+                        seasonality_mode='multiplicative',
+                        add_monthly_seasonality=True
+                    )
+                    
+                    if result['success']:
+                        print(f"✅ Successfully trained model for {company_name}")
+                        return result['model']
+                    else:
+                        error_msg = result.get('error', 'Unknown error')
+                        print(f"⚠️ Training attempt {attempt + 1} failed for {company_name}: {error_msg}")
+                        
+                        if attempt < max_retries - 1:
+                            print(f"🔄 Retrying with simplified parameters...")
+                            # Try with simplified parameters on retry
+                            result = self.prophet_wrapper.fit_and_predict(
+                                prophet_df, 
+                                periods=6,
+                                yearly_seasonality=False,
+                                weekly_seasonality=False,
+                                daily_seasonality=False,
+                                changepoint_prior_scale=0.1,
+                                seasonality_prior_scale=1.0,
+                                holidays_prior_scale=0.1,
+                                seasonality_mode='additive',
+                                add_monthly_seasonality=False
+                            )
+                            
+                            if result['success']:
+                                print(f"✅ Successfully trained simplified model for {company_name}")
+                                return result['model']
+                        else:
+                            print(f"❌ All training attempts failed for {company_name}")
+                            return None
+                            
+                except Exception as e:
+                    error_msg = str(e)
+                    print(f"⚠️ Training attempt {attempt + 1} exception for {company_name}: {error_msg}")
+                    
+                    if attempt < max_retries - 1:
+                        print(f"🔄 Retrying...")
+                        continue
+                    else:
+                        print(f"❌ All training attempts failed for {company_name}: {error_msg}")
+                        return None
+            
+            return None
             
         except Exception as e:
-            print(f"❌ Error training model for {company_name}: {str(e)}")
+            print(f"❌ Critical error training model for {company_name}: {str(e)}")
             return None
 
     def get_top_companies_forecast(self, time_series_data, top_n=5, forecast_months=6, retrain_models=True, data_hash=None):
@@ -269,33 +372,38 @@ class ForecastService:
             prophet_df.columns = ['ds', 'y']
             prophet_df = prophet_df[prophet_df['y'] > 0]  # Remove zero values
 
-            if len(prophet_df) < 4:  # Need minimum data points
-                print(f"⚠️ Insufficient data for {state_name}, skipping...")
+            # Validate data quality
+            is_valid, validation_msg = self._validate_data_quality(prophet_df, state_name)
+            if not is_valid:
+                print(f"⚠️ {state_name}: {validation_msg}, skipping...")
                 return None
 
-            # Initialize and fit model with optimized parameters
-            model = Prophet(
+            # Use cross-platform wrapper for state forecasting
+            result = self.prophet_wrapper.fit_and_predict(
+                prophet_df, 
+                periods=periods,
                 yearly_seasonality=True,
                 weekly_seasonality=False,
                 daily_seasonality=False,
                 changepoint_prior_scale=0.05,
                 seasonality_prior_scale=10,
                 holidays_prior_scale=0.05,
-                seasonality_mode='multiplicative'
+                seasonality_mode='multiplicative',
+                add_monthly_seasonality=True
             )
+            
+            if not result['success']:
+                print(f"❌ Failed to generate state forecast for {state_name}: {result.get('error', 'Unknown error')}")
+                return None
 
-            # Add monthly seasonality
-            model.add_seasonality(name='monthly', period=30.5, fourier_order=3)
-
-            model.fit(prophet_df)
-
-            # Make future dataframe
-            future = model.make_future_dataframe(periods=periods, freq='M', include_history=True)
-            forecast = model.predict(future)
+            forecast = result['forecast']
 
             # Calculate accuracy metrics on historical data
             historical_forecast = forecast[forecast['ds'].isin(prophet_df['ds'])]
-            mape = np.mean(np.abs((historical_forecast['yhat'] - prophet_df['y']) / prophet_df['y'])) * 100
+            if not historical_forecast.empty and not prophet_df.empty:
+                mape = np.mean(np.abs((historical_forecast['yhat'] - prophet_df['y']) / prophet_df['y'])) * 100
+            else:
+                mape = 0
 
             print(f"✅ {state_name}: State forecast created (MAPE: {mape:.1f}%)")
 

@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 from prophet import Prophet
 import json
+import pickle
+import os
+import hashlib
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
@@ -9,7 +12,86 @@ warnings.filterwarnings('ignore')
 class ForecastService:
     def __init__(self):
         self.time_series_data = None
+        self.trained_models = {}  # Cache for loaded models
+        self.model_registry_path = "models/model_registry.json"
         
+    def load_model(self, company_name):
+        """Load a trained model for a company"""
+        try:
+            if company_name in self.trained_models:
+                return self.trained_models[company_name]
+            
+            # Load from registry
+            registry = self._load_model_registry()
+            if registry and company_name in registry["models"]:
+                model_path = registry["models"][company_name]["model_path"]
+                if os.path.exists(model_path):
+                    with open(model_path, 'rb') as f:
+                        model = pickle.load(f)
+                    self.trained_models[company_name] = model
+                    print(f"✅ Loaded existing model for {company_name}")
+                    return model
+            
+            return None
+        except Exception as e:
+            print(f"❌ Error loading model for {company_name}: {str(e)}")
+            return None
+    
+    def save_model(self, company_name, model, data_hash):
+        """Save a trained model"""
+        try:
+            # Ensure models directory exists
+            os.makedirs("models/trained_models", exist_ok=True)
+            
+            model_path = f"models/trained_models/{company_name}_model.pkl"
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
+            
+            # Update registry
+            self._update_model_registry(company_name, model_path, data_hash)
+            
+            # Cache the model
+            self.trained_models[company_name] = model
+            
+            print(f"✅ Saved model for {company_name}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error saving model for {company_name}: {str(e)}")
+            return False
+    
+    def _load_model_registry(self):
+        """Load the model registry from JSON file"""
+        try:
+            if os.path.exists(self.model_registry_path):
+                with open(self.model_registry_path, 'r') as f:
+                    return json.load(f)
+            return None
+        except Exception as e:
+            print(f"❌ Error loading model registry: {str(e)}")
+            return None
+    
+    def _update_model_registry(self, company_name, model_path, data_hash):
+        """Update the model registry with new model information"""
+        try:
+            registry = self._load_model_registry() or {"models": {}, "last_updated": "", "cache_hits": 0, "cache_misses": 0}
+            
+            registry["models"][company_name] = {
+                "last_trained": datetime.now().isoformat(),
+                "data_hash": data_hash,
+                "model_path": model_path
+            }
+            registry["last_updated"] = datetime.now().isoformat()
+            
+            # Ensure models directory exists
+            os.makedirs(os.path.dirname(self.model_registry_path), exist_ok=True)
+            
+            with open(self.model_registry_path, 'w') as f:
+                json.dump(registry, f, indent=2)
+            
+        except Exception as e:
+            print(f"❌ Error updating model registry: {str(e)}")
+    
     def prepare_time_series_data(self, df):
         """
         Convert raw data to monthly time series for each company
@@ -62,7 +144,7 @@ class ForecastService:
             print(f"Error preparing state time series data: {e}")
             return None
 
-    def forecast_company_returns(self, company_series, company_name, periods=6):
+    def forecast_company_returns(self, company_series, company_name, periods=6, retrain_model=True, data_hash=None):
         """
         Forecast future returns for a single company using Prophet with confidence intervals
         """
@@ -76,21 +158,28 @@ class ForecastService:
                 print(f"⚠️ Insufficient data for {company_name}, skipping...")
                 return None
 
-            # Initialize and fit model with optimized parameters
-            model = Prophet(
-                yearly_seasonality=True,
-                weekly_seasonality=False,
-                daily_seasonality=False,
-                changepoint_prior_scale=0.05,
-                seasonality_prior_scale=10,
-                holidays_prior_scale=0.05,
-                seasonality_mode='multiplicative'
-            )
+            model = None
+            
+            if retrain_model:
+                # Train new model
+                print(f"🔄 Training new model for {company_name}...")
+                model = self._train_prophet_model(prophet_df, company_name)
+                
+                # Save the model if data_hash is provided
+                if model and data_hash:
+                    self.save_model(company_name, model, data_hash)
+            else:
+                # Try to load existing model
+                model = self.load_model(company_name)
+                if not model:
+                    print(f"⚠️ No existing model found for {company_name}, training new one...")
+                    model = self._train_prophet_model(prophet_df, company_name)
+                    if model and data_hash:
+                        self.save_model(company_name, model, data_hash)
 
-            # Add monthly seasonality
-            model.add_seasonality(name='monthly', period=30.5, fourier_order=3)
-
-            model.fit(prophet_df)
+            if not model:
+                print(f"❌ Failed to create model for {company_name}")
+                return None
 
             # Make future dataframe
             future = model.make_future_dataframe(periods=periods, freq='M', include_history=True)
@@ -111,8 +200,32 @@ class ForecastService:
         except Exception as e:
             print(f"❌ Error forecasting {company_name}: {str(e)}")
             return None
+    
+    def _train_prophet_model(self, prophet_df, company_name):
+        """Train a new Prophet model"""
+        try:
+            # Initialize and fit model with optimized parameters
+            model = Prophet(
+                yearly_seasonality=True,
+                weekly_seasonality=False,
+                daily_seasonality=False,
+                changepoint_prior_scale=0.05,
+                seasonality_prior_scale=10,
+                holidays_prior_scale=0.05,
+                seasonality_mode='multiplicative'
+            )
 
-    def get_top_companies_forecast(self, time_series_data, top_n=5, forecast_months=6):
+            # Add monthly seasonality
+            model.add_seasonality(name='monthly', period=30.5, fourier_order=3)
+
+            model.fit(prophet_df)
+            return model
+            
+        except Exception as e:
+            print(f"❌ Error training model for {company_name}: {str(e)}")
+            return None
+
+    def get_top_companies_forecast(self, time_series_data, top_n=5, forecast_months=6, retrain_models=True, data_hash=None):
         """
         Get forecasts for top N companies with highest average returns
         """
@@ -130,7 +243,13 @@ class ForecastService:
 
             for company in top_companies:
                 company_data = time_series_data[company]
-                forecast_result = self.forecast_company_returns(company_data, company, periods=forecast_months)
+                forecast_result = self.forecast_company_returns(
+                    company_data, 
+                    company, 
+                    periods=forecast_months,
+                    retrain_model=retrain_models,
+                    data_hash=data_hash
+                )
 
                 if forecast_result is not None:
                     forecasts[company] = forecast_result
@@ -563,13 +682,16 @@ class ForecastService:
             "totalStates": len(states)
         }
 
-    def generate_forecast_from_csv(self, csv_path, top_n=5, forecast_months=6):
+    def generate_forecast_from_csv(self, csv_path, top_n=5, forecast_months=6, retrain_models=True):
         """
         Generate forecasts from CSV file - includes both company and state forecasts
         """
         try:
             print("📊 Loading and preparing data from CSV...")
             df = pd.read_csv(csv_path)
+            
+            # Calculate data hash for model management
+            data_hash = self._calculate_data_hash(df)
             
             # Prepare company time series data
             self.time_series_data = self.prepare_time_series_data(df)
@@ -586,7 +708,13 @@ class ForecastService:
 
             # Generate company forecasts
             print("\n🔮 Generating AI forecasts for top companies...")
-            company_forecasts = self.get_top_companies_forecast(self.time_series_data, top_n, forecast_months)
+            company_forecasts = self.get_top_companies_forecast(
+                self.time_series_data, 
+                top_n, 
+                forecast_months,
+                retrain_models=retrain_models,
+                data_hash=data_hash
+            )
 
             # Generate state forecasts
             print("\n🔮 Generating AI forecasts for top states...")
@@ -607,7 +735,9 @@ class ForecastService:
                 "metadata": {
                     "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "forecastMonths": forecast_months,
-                    "topN": top_n
+                    "topN": top_n,
+                    "modelsRetrained": retrain_models,
+                    "dataHash": data_hash
                 }
             }
 
@@ -616,6 +746,23 @@ class ForecastService:
         except Exception as e:
             print(f"Error generating forecast from CSV: {e}")
             return {"error": str(e)}
+    
+    def _calculate_data_hash(self, df):
+        """Calculate hash of the data to detect changes"""
+        try:
+            # Create a hash based on data content (excluding order)
+            # Sort by date and company to ensure consistent hashing
+            df_sorted = df.sort_values(['DateTransactionJulian', 'NameAlpha'])
+            
+            # Create hash from key columns
+            hash_data = df_sorted[['DateTransactionJulian', 'NameAlpha', 'State', 'Orig_Inv_Ttl_Prod_Value']].to_string()
+            data_hash = hashlib.md5(hash_data.encode()).hexdigest()
+            
+            return data_hash
+            
+        except Exception as e:
+            print(f"❌ Error calculating data hash: {str(e)}")
+            return None
 
     def generate_forecast_from_db(self, db_connection, query, top_n=5, forecast_months=6):
         """

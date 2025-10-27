@@ -1,32 +1,47 @@
 {
   "models": {
     "AMERISOURCEBERGEN DRUG CORP": {
-      "last_trained": "2025-10-19T17:26:19.581046",
-      "data_hash": "-3635217314879580878",
+      "last_trained": "2025-10-27T18:15:49.749976",
+      "data_hash": "92bb55378851633c1e92196b2fb94aae",
       "model_path": "models/trained_models/AMERISOURCEBERGEN DRUG CORP_model.pkl"
     },
     "EXP AMERISOURCEBERGEN RETL ACC": {
-      "last_trained": "2025-10-19T17:26:21.607081",
-      "data_hash": "1785157335960418039",
+      "last_trained": "2025-10-27T18:15:50.319972",
+      "data_hash": "92bb55378851633c1e92196b2fb94aae",
       "model_path": "models/trained_models/EXP AMERISOURCEBERGEN RETL ACC_model.pkl"
     },
     "MCKESSON CORPORATION": {
-      "last_trained": "2025-10-19T17:26:21.663042",
-      "data_hash": "-4503577734604164128",
+      "last_trained": "2025-10-27T18:15:50.399671",
+      "data_hash": "92bb55378851633c1e92196b2fb94aae",
       "model_path": "models/trained_models/MCKESSON CORPORATION_model.pkl"
     },
     "CARDINAL HEALTH": {
-      "last_trained": "2025-10-19T17:26:21.730734",
-      "data_hash": "-4836903663801069227",
+      "last_trained": "2025-10-27T18:15:58.328172",
+      "data_hash": "92bb55378851633c1e92196b2fb94aae",
       "model_path": "models/trained_models/CARDINAL HEALTH_model.pkl"
     },
     "AMERISOURCEBERGEN": {
-      "last_trained": "2025-10-19T17:26:22.317297",
-      "data_hash": "8842888445653838350",
+      "last_trained": "2025-10-27T18:15:58.276742",
+      "data_hash": "92bb55378851633c1e92196b2fb94aae",
       "model_path": "models/trained_models/AMERISOURCEBERGEN_model.pkl"
+    },
+    "CVS HEALTH": {
+      "last_trained": "2025-10-27T18:15:33.634398",
+      "data_hash": "e5b6769595abe4a11c1b45a1a0a4c5d0",
+      "model_path": "models/trained_models/CVS HEALTH_model.pkl"
+    },
+    "RITE AID": {
+      "last_trained": "2025-10-27T18:15:37.752515",
+      "data_hash": "e5b6769595abe4a11c1b45a1a0a4c5d0",
+      "model_path": "models/trained_models/RITE AID_model.pkl"
+    },
+    "WALGREENS": {
+      "last_trained": "2025-10-27T18:15:46.418428",
+      "data_hash": "ff0befc4d7d064f1ffe09a76c5dd7ebf",
+      "model_path": "models/trained_models/WALGREENS_model.pkl"
     }
   },
-  "last_updated": "2025-10-19T17:26:22.317311",
+  "last_updated": "2025-10-27T18:15:58.328179",
   "cache_hits": 0,
   "cache_misses": 5
 }

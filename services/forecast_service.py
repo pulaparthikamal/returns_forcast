@@ -456,7 +456,8 @@ class ForecastService:
             return {}
 
     def get_current_month_info(self):
-        """Get current month and calculate timeline periods"""
+        """Get current month and calculate timeline periods using system month"""
+        # Use system date for current month
         current_date = datetime.now()
         current_month = current_date.replace(day=1)  # First day of current month
 
@@ -466,9 +467,13 @@ class ForecastService:
         else:
             previous_month = current_month.replace(month=current_month.month-1)
 
-        # Start of historical data (12 months back from previous month)
-        historical_start = previous_month - timedelta(days=365)
-        historical_start = historical_start.replace(day=1)
+        # Start of historical data (6 months back from previous month)
+        historical_start = previous_month
+        for _ in range(5):  # Go back 5 more months to get 6 total historical months
+            if historical_start.month == 1:
+                historical_start = historical_start.replace(year=historical_start.year-1, month=12)
+            else:
+                historical_start = historical_start.replace(month=historical_start.month-1)
 
         # Forecast months (current month + next 5 months)
         forecast_months = []
@@ -486,7 +491,7 @@ class ForecastService:
             'previous_month': previous_month,
             'historical_start': historical_start,
             'forecast_months': forecast_months,
-            'historical_period': 12,  # Last 12 complete months
+            'historical_period': 6,  # Last 6 complete months
             'forecast_period': 6     # Current + next 5 months
         }
 
@@ -496,7 +501,7 @@ class ForecastService:
         if not forecasts:
             return {"forecastData": [], "metadata": {"companies": [], "error": "No forecasts generated"}}
 
-        # Get timeline information
+        # Get timeline information (system-month based)
         timeline = self.get_current_month_info()
 
         # Get top companies from forecasts
@@ -504,23 +509,26 @@ class ForecastService:
 
         react_data = []
 
-        # Historical data (last 12 complete months)
+        # Historical data (last 6 complete months)
         historical_end = timeline['previous_month']
         historical_start = timeline['historical_start']
 
-        # Filter historical data for the period
+        # Filter historical data for the period; if system-month window exceeds data range,
+        # fallback to last 6 available months in the data
         historical_start_dt = pd.to_datetime(historical_start)
         historical_end_dt = pd.to_datetime(historical_end)
 
         historical_mask = (time_series_data.index >= historical_start_dt) & (time_series_data.index <= historical_end_dt)
         historical_data = time_series_data[historical_mask]
+        if len(historical_data) < 6:
+            historical_data = time_series_data.tail(6)
 
-        print(f"📅 Timeline Info:")
+        print(f"Timeline Info:")
         print(f"   Current Date: {timeline['current_date'].strftime('%Y-%m-%d')}")
         print(f"   Current Month: {timeline['current_month'].strftime('%b %Y')}")
         print(f"   Previous Month: {timeline['previous_month'].strftime('%b %Y')}")
-        print(f"   Historical Period: {historical_start.strftime('%b %Y')} to {historical_end.strftime('%b %Y')}")
-        print(f"   Forecast Period: {timeline['forecast_months'][0].strftime('%b %Y')} to {timeline['forecast_months'][-1].strftime('%b %Y')}")
+        print(f"   Historical Period: {historical_start.strftime('%b %Y')} to {historical_end.strftime('%b %Y')} (6 months)")
+        print(f"   Forecast Period: {timeline['forecast_months'][0].strftime('%b %Y')} to {timeline['forecast_months'][-1].strftime('%b %Y')} (6 months)")
 
         # Add historical data
         for date in historical_data.index:
@@ -588,7 +596,7 @@ class ForecastService:
         if not state_forecasts:
             return {"forecastData": [], "metadata": {"states": [], "error": "No state forecasts generated"}}
 
-        # Get timeline information
+        # Get timeline information (system-month based)
         timeline = self.get_current_month_info()
 
         # Get top states from forecasts
@@ -596,23 +604,26 @@ class ForecastService:
 
         react_data = []
 
-        # Historical data (last 12 complete months)
+        # Historical data (last 6 complete months)
         historical_end = timeline['previous_month']
         historical_start = timeline['historical_start']
 
-        # Filter historical data for the period
+        # Filter historical data for the period; if system-month window exceeds data range,
+        # fallback to last 6 available months in the data
         historical_start_dt = pd.to_datetime(historical_start)
         historical_end_dt = pd.to_datetime(historical_end)
 
         historical_mask = (state_time_series_data.index >= historical_start_dt) & (state_time_series_data.index <= historical_end_dt)
         historical_data = state_time_series_data[historical_mask]
+        if len(historical_data) < 6:
+            historical_data = state_time_series_data.tail(6)
 
-        print(f"📅 State Timeline Info:")
+        print(f"State Timeline Info:")
         print(f"   Current Date: {timeline['current_date'].strftime('%Y-%m-%d')}")
         print(f"   Current Month: {timeline['current_month'].strftime('%b %Y')}")
         print(f"   Previous Month: {timeline['previous_month'].strftime('%b %Y')}")
-        print(f"   Historical Period: {historical_start.strftime('%b %Y')} to {historical_end.strftime('%b %Y')}")
-        print(f"   Forecast Period: {timeline['forecast_months'][0].strftime('%b %Y')} to {timeline['forecast_months'][-1].strftime('%b %Y')}")
+        print(f"   Historical Period: {historical_start.strftime('%b %Y')} to {historical_end.strftime('%b %Y')} (6 months)")
+        print(f"   Forecast Period: {timeline['forecast_months'][0].strftime('%b %Y')} to {timeline['forecast_months'][-1].strftime('%b %Y')} (6 months)")
 
         # Add historical data
         for date in historical_data.index:

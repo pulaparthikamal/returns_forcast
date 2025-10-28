@@ -239,3 +239,4 @@ The implemented fixes provide:
 - ✅ **Better user experience** with clear error messages
 
 The system now works reliably across all platforms, automatically handling Prophet installation issues and providing fallback methods when needed.
+

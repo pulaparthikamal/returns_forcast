@@ -153,3 +153,4 @@ The Prophet forecasting system now works reliably across all platforms with:
 - ✅ **Easy installation** with automated setup scripts
 
 The system will automatically use Prophet when available, and seamlessly fall back to scikit-learn based methods when Prophet fails, ensuring 100% reliability for forecasting operations.
+

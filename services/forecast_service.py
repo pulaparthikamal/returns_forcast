@@ -374,7 +374,7 @@ class ForecastService:
 
     def generate_react_forecast_data(self, forecasts, time_series_data):
         """Generate React-compatible forecast data with proper timeline"""
-
+        
         if not forecasts:
             return {"forecastData": [], "metadata": {"companies": [], "error": "No forecasts generated"}}
 
@@ -386,16 +386,16 @@ class ForecastService:
 
         react_data = []
 
-        # Historical data (last 12 complete months)
+        # Historical data (last 6 complete months)
         historical_end = timeline['previous_month']
-        historical_start = timeline['historical_start']
+        historical_start = historical_end - timedelta(days=180)  # 6 months back
 
-        # Filter historical data for the period
+        # Filter historical data for the last 6 months
         historical_start_dt = pd.to_datetime(historical_start)
         historical_end_dt = pd.to_datetime(historical_end)
 
         historical_mask = (time_series_data.index >= historical_start_dt) & (time_series_data.index <= historical_end_dt)
-        historical_data = time_series_data[historical_mask]
+        historical_data = time_series_data[historical_mask].tail(6)  # Ensure exactly 6 months historical
 
         print(f"📅 Timeline Info:")
         print(f"   Current Date: {timeline['current_date'].strftime('%Y-%m-%d')}")
@@ -404,7 +404,7 @@ class ForecastService:
         print(f"   Historical Period: {historical_start.strftime('%b %Y')} to {historical_end.strftime('%b %Y')}")
         print(f"   Forecast Period: {timeline['forecast_months'][0].strftime('%b %Y')} to {timeline['forecast_months'][-1].strftime('%b %Y')}")
 
-        # Add historical data
+        # Add historical data (6 months)
         for date in historical_data.index:
             month_data = {'month': date.strftime('%b %Y'), 'isHistorical': True}
             for company in top_companies:
@@ -414,8 +414,9 @@ class ForecastService:
                     month_data[company] = 0
             react_data.append(month_data)
 
-        # Add forecast data (current month + next 5 months)
-        for i, forecast_date in enumerate(timeline['forecast_months']):
+        # Add forecast data (6 months only)
+        forecast_months = timeline['forecast_months'][:6]  # Limit to 6 months
+        for i, forecast_date in enumerate(forecast_months):
             month_data = {'month': forecast_date.strftime('%b %Y'), 'isHistorical': False}
 
             # Mark if this is current month (partial data might be available)
@@ -466,7 +467,7 @@ class ForecastService:
 
     def generate_state_react_forecast_data(self, state_forecasts, state_time_series_data):
         """Generate React-compatible state forecast data with proper timeline"""
-
+    
         if not state_forecasts:
             return {"forecastData": [], "metadata": {"states": [], "error": "No state forecasts generated"}}
 
@@ -478,16 +479,16 @@ class ForecastService:
 
         react_data = []
 
-        # Historical data (last 12 complete months)
+        # Historical data (last 6 complete months)
         historical_end = timeline['previous_month']
-        historical_start = timeline['historical_start']
+        historical_start = historical_end - timedelta(days=180)  # 6 months back
 
-        # Filter historical data for the period
+        # Filter historical data for the last 6 months
         historical_start_dt = pd.to_datetime(historical_start)
         historical_end_dt = pd.to_datetime(historical_end)
 
         historical_mask = (state_time_series_data.index >= historical_start_dt) & (state_time_series_data.index <= historical_end_dt)
-        historical_data = state_time_series_data[historical_mask]
+        historical_data = state_time_series_data[historical_mask].tail(6)  # Ensure exactly 6 months historical
 
         print(f"📅 State Timeline Info:")
         print(f"   Current Date: {timeline['current_date'].strftime('%Y-%m-%d')}")
@@ -496,7 +497,7 @@ class ForecastService:
         print(f"   Historical Period: {historical_start.strftime('%b %Y')} to {historical_end.strftime('%b %Y')}")
         print(f"   Forecast Period: {timeline['forecast_months'][0].strftime('%b %Y')} to {timeline['forecast_months'][-1].strftime('%b %Y')}")
 
-        # Add historical data
+        # Add historical data (6 months)
         for date in historical_data.index:
             month_data = {'month': date.strftime('%b %Y'), 'isHistorical': True}
             for state in top_states:
@@ -506,8 +507,9 @@ class ForecastService:
                     month_data[state] = 0
             react_data.append(month_data)
 
-        # Add forecast data (current month + next 5 months)
-        for i, forecast_date in enumerate(timeline['forecast_months']):
+        # Add forecast data (6 months only)
+        forecast_months = timeline['forecast_months'][:6]  # Limit to 6 months
+        for i, forecast_date in enumerate(forecast_months):
             month_data = {'month': forecast_date.strftime('%b %Y'), 'isHistorical': False}
 
             # Mark if this is current month (partial data might be available)
